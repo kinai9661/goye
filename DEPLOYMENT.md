@@ -27,10 +27,13 @@ flowchart LR
 
 ### 服務建立步驟
 1. 在 Railway 建立新專案，選擇從 GitHub 匯入。
-2. Root Directory 設定為 `backend`。
+2. **Root Directory 一定要設定為 `backend`**。
 3. Railway 會自動安裝 [`backend/requirements.txt`](backend/requirements.txt)。
 4. 啟動命令使用：
    - `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+
+> 若你把 Root Directory 指到 repo 根目錄，常見錯誤是「No python entrypoint found」。
+> 本專案已提供根目錄入口檔 [`main.py`](main.py) 與 [`backend/main.py`](backend/main.py)，但仍建議用 `backend` 當 Root Directory，避免安裝到錯誤依賴清單。
 
 ### 後端環境變數
 在 Railway 設定：
