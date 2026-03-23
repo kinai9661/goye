@@ -143,6 +143,14 @@
         font-size: 12px;
         margin-top: 8px;
       }
+      .hidden {
+        display: none !important;
+      }
+      .summary {
+        font-size: 14px;
+        line-height: 1.7;
+        color: #dbe2ff;
+      }
     </style>
   </head>
   <body>
@@ -216,6 +224,15 @@
         </div>
       </section>
 
+      <section id="summaryCard" class="card hidden">
+        <h2>完成摘要與下載</h2>
+        <div id="summaryText" class="summary">任務尚未完成。</div>
+        <div class="row" style="margin-top: 12px">
+          <button id="downloadCsvBtn" class="secondary" disabled>Download CSV</button>
+          <button id="downloadTxtBtn" class="secondary" disabled>Download TXT</button>
+        </div>
+      </section>
+
       <section class="card">
         <h2>結果列表（最新 <span id="resultCount">0</span> 筆）</h2>
         <div id="logs" class="logs">
@@ -245,7 +262,14 @@
         lastError: document.getElementById("lastError"),
         resultCount: document.getElementById("resultCount"),
         logs: document.getElementById("logs"),
+        summaryCard: document.getElementById("summaryCard"),
+        summaryText: document.getElementById("summaryText"),
+        downloadCsvBtn: document.getElementById("downloadCsvBtn"),
+        downloadTxtBtn: document.getElementById("downloadTxtBtn"),
       };
+
+      let latestStatus = null;
+      let latestResults = [];
 
       function formatDate(value) {
         if (!value) return "-";
@@ -284,6 +308,86 @@
         return JSON.parse(text);
       }
 
+      function escapeCsvCell(value) {
+        const text = String(value ?? "");
+        if (/[",\n]/.test(text)) {
+          return `"${text.replace(/"/g, '""')}"`;
+        }
+        return text;
+      }
+
+      function toCsv(items) {
+        const header = ["run_id", "step", "total_steps", "task_name", "message", "created_at"];
+        const lines = [header.join(",")];
+        for (const item of items) {
+          lines.push(
+            [
+              escapeCsvCell(item.run_id),
+              escapeCsvCell(item.step),
+              escapeCsvCell(item.total_steps),
+              escapeCsvCell(item.task_name),
+              escapeCsvCell(item.message),
+              escapeCsvCell(item.created_at),
+            ].join(",")
+          );
+        }
+        return lines.join("\n");
+      }
+
+      function toTxt(items) {
+        return items
+          .map(
+            (item) =>
+              `[${formatDate(item.created_at)}] ${item.task_name} #${item.step}/${item.total_steps} - ${item.message}`
+          )
+          .join("\n");
+      }
+
+      function triggerDownload(filename, content, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function renderCompletionSummary(status, results) {
+        const state = status?.state || "idle";
+        const isFinished = state === "completed" || state === "stopped" || state === "failed";
+        const count = Array.isArray(results) ? results.length : 0;
+
+        const canDownload = count > 0;
+        els.downloadCsvBtn.disabled = !canDownload;
+        els.downloadTxtBtn.disabled = !canDownload;
+
+        if (!isFinished) {
+          els.summaryCard.classList.add("hidden");
+          return;
+        }
+
+        els.summaryCard.classList.remove("hidden");
+
+        if (!count) {
+          els.summaryText.innerHTML = `狀態：<b>${state}</b><br/>此任務沒有可下載的結果。`;
+          return;
+        }
+
+        const first = results[0];
+        const last = results[results.length - 1];
+
+        els.summaryText.innerHTML =
+          `狀態：<b>${state}</b><br/>` +
+          `Task：<b>${status?.task_name || "-"}</b><br/>` +
+          `Run ID：<b>${status?.run_id || "-"}</b><br/>` +
+          `完成步數：<b>${status?.progress || 0} / ${status?.total_steps || 0}</b><br/>` +
+          `結果筆數：<b>${count}</b><br/>` +
+          `結果時間範圍：<b>${formatDate(first?.created_at)} ~ ${formatDate(last?.created_at)}</b>`;
+      }
+
       function setError(message) {
         els.error.textContent = message || "";
       }
@@ -300,6 +404,8 @@
         const total = Number(status?.total_steps || 0);
         const percent = total > 0 ? Math.round((progress / total) * 100) : 0;
 
+        latestStatus = status;
+
         els.stateBadge.textContent = state;
         els.stateBadge.className = `badge ${state}`;
         els.progressPercent.textContent = `${percent}%`;
@@ -310,14 +416,18 @@
         els.finishedAt.textContent = formatDate(status?.finished_at);
         els.updatedAt.textContent = formatDate(status?.updated_at);
         els.lastError.textContent = status?.last_error || "-";
+
+        renderCompletionSummary(latestStatus, latestResults);
       }
 
       function renderResults(results) {
         const items = Array.isArray(results) ? results : [];
+        latestResults = items;
         els.resultCount.textContent = String(items.length);
 
         if (!items.length) {
           els.logs.innerHTML = '<div class="log-item">No results yet.</div>';
+          renderCompletionSummary(latestStatus, latestResults);
           return;
         }
 
@@ -328,6 +438,8 @@
             return `<div class="log-item">[${time}] ${item.task_name} #${item.step}/${item.total_steps} - ${item.message}</div>`;
           })
           .join("");
+
+        renderCompletionSummary(latestStatus, latestResults);
       }
 
       async function refreshAll() {
@@ -381,9 +493,28 @@
         }
       }
 
+      function getDownloadFilename(ext) {
+        const runId = String(latestStatus?.run_id || "task").replace(/[^a-zA-Z0-9_-]/g, "_");
+        return `results-${runId}.${ext}`;
+      }
+
+      function handleDownloadCsv() {
+        if (!latestResults.length) return;
+        const content = toCsv(latestResults);
+        triggerDownload(getDownloadFilename("csv"), content, "text/csv;charset=utf-8");
+      }
+
+      function handleDownloadTxt() {
+        if (!latestResults.length) return;
+        const content = toTxt(latestResults);
+        triggerDownload(getDownloadFilename("txt"), content, "text/plain;charset=utf-8");
+      }
+
       els.startBtn.addEventListener("click", handleStart);
       els.stopBtn.addEventListener("click", handleStop);
       els.refreshBtn.addEventListener("click", handleRefresh);
+      els.downloadCsvBtn.addEventListener("click", handleDownloadCsv);
+      els.downloadTxtBtn.addEventListener("click", handleDownloadTxt);
 
       handleRefresh();
       setInterval(() => {
