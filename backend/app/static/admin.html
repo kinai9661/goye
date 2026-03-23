@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Backend Admin Panel</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: #0b1020;
+        color: #e7ecff;
+      }
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1,
+      h2 {
+        margin: 0 0 12px;
+      }
+      .card {
+        background: #141b34;
+        border: 1px solid #2a3666;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .field {
+        flex: 1;
+        min-width: 180px;
+      }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        color: #9db1ff;
+      }
+      input {
+        width: 100%;
+        background: #0f1530;
+        border: 1px solid #334175;
+        color: #e7ecff;
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      input:focus {
+        outline: none;
+        border-color: #6b88ff;
+      }
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.primary {
+        background: #5f7dff;
+        color: #fff;
+      }
+      button.warn {
+        background: #d26262;
+        color: #fff;
+      }
+      button.secondary {
+        background: #263157;
+        color: #dbe2ff;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .badge.running {
+        background: #264d2e;
+        color: #9effb2;
+      }
+      .badge.idle,
+      .badge.stopped {
+        background: #3a3f5c;
+        color: #cfd8ff;
+      }
+      .badge.completed {
+        background: #21445f;
+        color: #8ad0ff;
+      }
+      .badge.failed {
+        background: #5a2b2b;
+        color: #ffb0b0;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 8px 12px;
+        font-size: 14px;
+      }
+      .kv .key {
+        color: #9db1ff;
+      }
+      .error {
+        color: #ff9f9f;
+        margin-top: 8px;
+        font-size: 13px;
+        white-space: pre-wrap;
+      }
+      .logs {
+        max-height: 320px;
+        overflow: auto;
+        border: 1px solid #2a3666;
+        border-radius: 10px;
+      }
+      .log-item {
+        padding: 10px 12px;
+        border-bottom: 1px solid #212c56;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+      }
+      .log-item:last-child {
+        border-bottom: 0;
+      }
+      .tip {
+        color: #b9c8ff;
+        font-size: 12px;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Backend Admin Panel</h1>
+
+      <section class="card">
+        <h2>連線與授權</h2>
+        <div class="row">
+          <div class="field" style="min-width: 320px">
+            <label for="token">Bearer Token（若後端啟用 API_BEARER_TOKEN 則必填）</label>
+            <input id="token" type="password" placeholder="貼上 token（不含 Bearer）" />
+          </div>
+        </div>
+        <div class="tip">若未設定 API_BEARER_TOKEN，可留空。</div>
+      </section>
+
+      <section class="card">
+        <h2>控制面板</h2>
+        <div class="row">
+          <div class="field">
+            <label for="taskName">Task Name</label>
+            <input id="taskName" value="demo-task" />
+          </div>
+          <div class="field">
+            <label for="totalSteps">Total Steps</label>
+            <input id="totalSteps" type="number" min="1" max="5000" value="20" />
+          </div>
+          <div class="field">
+            <label for="intervalSeconds">Interval (seconds)</label>
+            <input id="intervalSeconds" type="number" min="0.1" max="60" step="0.1" value="1" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top: 12px">
+          <button id="startBtn" class="primary">Start</button>
+          <button id="stopBtn" class="warn">Stop</button>
+          <button id="refreshBtn" class="secondary">Refresh</button>
+        </div>
+        <div id="error" class="error"></div>
+      </section>
+
+      <section class="card">
+        <h2>即時狀態</h2>
+        <div class="row" style="margin-bottom: 10px">
+          <span id="stateBadge" class="badge idle">idle</span>
+          <span id="progressPercent">0%</span>
+        </div>
+
+        <div class="kv">
+          <div class="key">Run ID</div>
+          <div id="runId">-</div>
+
+          <div class="key">Task Name</div>
+          <div id="taskNameValue">-</div>
+
+          <div class="key">Progress</div>
+          <div id="progress">0 / 0</div>
+
+          <div class="key">Started At</div>
+          <div id="startedAt">-</div>
+
+          <div class="key">Finished At</div>
+          <div id="finishedAt">-</div>
+
+          <div class="key">Updated At</div>
+          <div id="updatedAt">-</div>
+
+          <div class="key">Last Error</div>
+          <div id="lastError">-</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>結果列表（最新 <span id="resultCount">0</span> 筆）</h2>
+        <div id="logs" class="logs">
+          <div class="log-item">No results yet.</div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const els = {
+        token: document.getElementById("token"),
+        taskName: document.getElementById("taskName"),
+        totalSteps: document.getElementById("totalSteps"),
+        intervalSeconds: document.getElementById("intervalSeconds"),
+        startBtn: document.getElementById("startBtn"),
+        stopBtn: document.getElementById("stopBtn"),
+        refreshBtn: document.getElementById("refreshBtn"),
+        error: document.getElementById("error"),
+        stateBadge: document.getElementById("stateBadge"),
+        progressPercent: document.getElementById("progressPercent"),
+        runId: document.getElementById("runId"),
+        taskNameValue: document.getElementById("taskNameValue"),
+        progress: document.getElementById("progress"),
+        startedAt: document.getElementById("startedAt"),
+        finishedAt: document.getElementById("finishedAt"),
+        updatedAt: document.getElementById("updatedAt"),
+        lastError: document.getElementById("lastError"),
+        resultCount: document.getElementById("resultCount"),
+        logs: document.getElementById("logs"),
+      };
+
+      function formatDate(value) {
+        if (!value) return "-";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString("zh-HK", { hour12: false });
+      }
+
+      function getHeaders(withJson = false) {
+        const headers = {};
+        const token = (els.token.value || "").trim();
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+        if (withJson) {
+          headers["Content-Type"] = "application/json";
+        }
+        return headers;
+      }
+
+      async function api(path, options = {}) {
+        const response = await fetch(path, {
+          ...options,
+          headers: {
+            ...(options.headers || {}),
+            ...getHeaders(options.body != null),
+          },
+        });
+
+        const text = await response.text();
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
+        }
+
+        if (!text) return null;
+        return JSON.parse(text);
+      }
+
+      function setError(message) {
+        els.error.textContent = message || "";
+      }
+
+      function setBusy(isBusy) {
+        els.startBtn.disabled = isBusy;
+        els.stopBtn.disabled = isBusy;
+        els.refreshBtn.disabled = isBusy;
+      }
+
+      function renderStatus(status) {
+        const state = status?.state || "idle";
+        const progress = Number(status?.progress || 0);
+        const total = Number(status?.total_steps || 0);
+        const percent = total > 0 ? Math.round((progress / total) * 100) : 0;
+
+        els.stateBadge.textContent = state;
+        els.stateBadge.className = `badge ${state}`;
+        els.progressPercent.textContent = `${percent}%`;
+        els.runId.textContent = status?.run_id || "-";
+        els.taskNameValue.textContent = status?.task_name || "-";
+        els.progress.textContent = `${progress} / ${total}`;
+        els.startedAt.textContent = formatDate(status?.started_at);
+        els.finishedAt.textContent = formatDate(status?.finished_at);
+        els.updatedAt.textContent = formatDate(status?.updated_at);
+        els.lastError.textContent = status?.last_error || "-";
+      }
+
+      function renderResults(results) {
+        const items = Array.isArray(results) ? results : [];
+        els.resultCount.textContent = String(items.length);
+
+        if (!items.length) {
+          els.logs.innerHTML = '<div class="log-item">No results yet.</div>';
+          return;
+        }
+
+        const reversed = [...items].reverse();
+        els.logs.innerHTML = reversed
+          .map((item) => {
+            const time = formatDate(item.created_at);
+            return `<div class="log-item">[${time}] ${item.task_name} #${item.step}/${item.total_steps} - ${item.message}</div>`;
+          })
+          .join("");
+      }
+
+      async function refreshAll() {
+        const [status, results] = await Promise.all([api("/status"), api("/results?limit=200")]);
+        renderStatus(status);
+        renderResults(results);
+      }
+
+      async function handleStart() {
+        setError("");
+        setBusy(true);
+        try {
+          await api("/start", {
+            method: "POST",
+            body: JSON.stringify({
+              task_name: els.taskName.value || "demo-task",
+              total_steps: Number(els.totalSteps.value || 1),
+              interval_seconds: Number(els.intervalSeconds.value || 1),
+            }),
+          });
+          await refreshAll();
+        } catch (error) {
+          setError(String(error));
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function handleStop() {
+        setError("");
+        setBusy(true);
+        try {
+          await api("/stop", { method: "POST" });
+          await refreshAll();
+        } catch (error) {
+          setError(String(error));
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function handleRefresh() {
+        setError("");
+        setBusy(true);
+        try {
+          await refreshAll();
+        } catch (error) {
+          setError(String(error));
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      els.startBtn.addEventListener("click", handleStart);
+      els.stopBtn.addEventListener("click", handleStop);
+      els.refreshBtn.addEventListener("click", handleRefresh);
+
+      handleRefresh();
+      setInterval(() => {
+        refreshAll().catch((error) => setError(String(error)));
+      }, 3000);
+    </script>
+  </body>
+</html>

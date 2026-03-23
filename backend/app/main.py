@@ -7,6 +7,8 @@ from typing import List, Literal, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 
@@ -163,6 +165,12 @@ class TaskManager:
 app = FastAPI(title="Generic Task Panel API", version="1.0.0")
 manager = TaskManager()
 
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+ADMIN_HTML_PATH = os.path.join(STATIC_DIR, "admin.html")
+
+if os.path.isdir(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 api_bearer_token = os.getenv("API_BEARER_TOKEN", "").strip()
 raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000")
 allow_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
@@ -183,6 +191,13 @@ def verify_bearer_token(authorization: Optional[str] = Header(default=None)) -> 
     expected = f"Bearer {api_bearer_token}"
     if authorization != expected:
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+@app.get("/")
+def admin_ui() -> FileResponse:
+    if not os.path.isfile(ADMIN_HTML_PATH):
+        raise HTTPException(status_code=500, detail="Admin UI not found")
+    return FileResponse(ADMIN_HTML_PATH)
 
 
 @app.get("/health")

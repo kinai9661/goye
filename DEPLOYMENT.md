@@ -45,9 +45,15 @@ flowchart LR
 
 ### 驗證
 部署完成後打開：
+- `https://<railway-domain>/`（後台管理 UI）
 - `https://<railway-domain>/health`
 
-若回傳 `{"ok": true, ...}` 代表成功。
+若 `/health` 回傳 `{"ok": true, ...}` 代表成功。
+
+### 後台管理 UI（嵌入 FastAPI）
+- 路由入口：`/`（對應 [`backend/app/static/admin.html`](backend/app/static/admin.html)）
+- 後端路由：[`admin_ui()`](backend/app/main.py:197)
+- 若你有設定 `API_BEARER_TOKEN`，請在頁面上方輸入 token（不含 `Bearer` 前綴）
 
 ---
 
