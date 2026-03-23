@@ -1,0 +1,161 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #0b1020;
+  color: #e7ecff;
+}
+
+main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 12px;
+}
+
+.card {
+  background: #141b34;
+  border: 1px solid #2a3666;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: #9db1ff;
+}
+
+input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #334175;
+  background: #0f1530;
+  color: #e7ecff;
+}
+
+input:focus {
+  outline: none;
+  border-color: #6b88ff;
+}
+
+.field {
+  flex: 1;
+  min-width: 180px;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.primary {
+  background: #5f7dff;
+  color: #fff;
+}
+
+button.warn {
+  background: #d26262;
+  color: #fff;
+}
+
+button.secondary {
+  background: #263157;
+  color: #dbe2ff;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 8px 12px;
+  font-size: 14px;
+}
+
+.kv .key {
+  color: #9db1ff;
+}
+
+.log-list {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid #2a3666;
+  border-radius: 10px;
+}
+
+.log-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid #212c56;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.log-item:last-child {
+  border-bottom: 0;
+}
+
+.badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.badge.running {
+  background: #264d2e;
+  color: #9effb2;
+}
+
+.badge.idle,
+.badge.stopped {
+  background: #3a3f5c;
+  color: #cfd8ff;
+}
+
+.badge.completed {
+  background: #21445f;
+  color: #8ad0ff;
+}
+
+.badge.failed {
+  background: #5a2b2b;
+  color: #ffb0b0;
+}
+
+.error {
+  color: #ff9f9f;
+  font-size: 13px;
+  margin-top: 8px;
+}
