@@ -343,6 +343,43 @@
           .join("\n");
       }
 
+      function buildSummaryObject(status, count) {
+        return {
+          state: status?.state || "idle",
+          run_id: status?.run_id || "-",
+          task_name: status?.task_name || "-",
+          progress: status?.progress || 0,
+          total_steps: status?.total_steps || 0,
+          started_at: status?.started_at || "-",
+          finished_at: status?.finished_at || "-",
+          updated_at: status?.updated_at || "-",
+          last_error: status?.last_error || "",
+          result_count: count || 0,
+        };
+      }
+
+      function summaryToCsv(status, count) {
+        const summary = buildSummaryObject(status, count);
+        const header = Object.keys(summary);
+        const row = header.map((key) => escapeCsvCell(summary[key]));
+        return [header.join(","), row.join(",")].join("\n");
+      }
+
+      function summaryToTxt(status, count) {
+        const summary = buildSummaryObject(status, count);
+        return [
+          `state: ${summary.state}`,
+          `run_id: ${summary.run_id}`,
+          `task_name: ${summary.task_name}`,
+          `progress: ${summary.progress}/${summary.total_steps}`,
+          `started_at: ${summary.started_at}`,
+          `finished_at: ${summary.finished_at}`,
+          `updated_at: ${summary.updated_at}`,
+          `last_error: ${summary.last_error || "-"}`,
+          `result_count: ${summary.result_count}`,
+        ].join("\n");
+      }
+
       function triggerDownload(filename, content, mimeType) {
         const blob = new Blob([content], { type: mimeType });
         const url = URL.createObjectURL(blob);
@@ -360,7 +397,7 @@
         const isFinished = state === "completed" || state === "stopped" || state === "failed";
         const count = Array.isArray(results) ? results.length : 0;
 
-        const canDownload = count > 0;
+        const canDownload = isFinished;
         els.downloadCsvBtn.disabled = !canDownload;
         els.downloadTxtBtn.disabled = !canDownload;
 
@@ -372,7 +409,7 @@
         els.summaryCard.classList.remove("hidden");
 
         if (!count) {
-          els.summaryText.innerHTML = `狀態：<b>${state}</b><br/>此任務沒有可下載的結果。`;
+          els.summaryText.innerHTML = `狀態：<b>${state}</b><br/>此任務沒有明細結果，仍可下載摘要檔。`;
           return;
         }
 
@@ -499,14 +536,18 @@
       }
 
       function handleDownloadCsv() {
-        if (!latestResults.length) return;
-        const content = toCsv(latestResults);
+        if (!latestStatus) return;
+        const content = latestResults.length
+          ? toCsv(latestResults)
+          : summaryToCsv(latestStatus, latestResults.length);
         triggerDownload(getDownloadFilename("csv"), content, "text/csv;charset=utf-8");
       }
 
       function handleDownloadTxt() {
-        if (!latestResults.length) return;
-        const content = toTxt(latestResults);
+        if (!latestStatus) return;
+        const content = latestResults.length
+          ? toTxt(latestResults)
+          : summaryToTxt(latestStatus, latestResults.length);
         triggerDownload(getDownloadFilename("txt"), content, "text/plain;charset=utf-8");
       }
 

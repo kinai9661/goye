@@ -134,6 +134,17 @@ class TaskManager:
                     self.updated_at = utc_now_iso()
 
             with self._lock:
+                if not self.results:
+                    self.results.append(
+                        TaskResult(
+                            run_id=run_id,
+                            step=0,
+                            total_steps=total_steps,
+                            task_name=task_name,
+                            message="Task completed (no step entries)",
+                            created_at=utc_now_iso(),
+                        )
+                    )
                 self.finished_at = utc_now_iso()
                 self._set_state("completed")
 
